@@ -21,7 +21,7 @@ delay_list = []
 r = redis.StrictRedis(host="localhost", port=6379, db=1)
 r1 = redis.StrictRedis(host="localhost", port=6379, db=0)
 
-for split_layer in range(3, 5):
+for split_layer in range(3, 57):
     second_model = SecondNet(children, split_layer, avgpool, classifier)
     second_model.eval()
     second_model.to("cpu")

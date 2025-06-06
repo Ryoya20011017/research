@@ -9,6 +9,9 @@ from efficientnet_b7_split import FirstNet
 import multiprocessing as mp
 from multiprocessing import Queue, Process
 
+import os
+import csv
+
 model = models.efficientnet_b7()
 model.eval()
 children = [
@@ -90,11 +93,50 @@ def dete(wq, d_queue, sl):
     q1.put((t, first_t, second_t))
 
 
+def record_csv(s_min, delay_data):
+    data_list=[]
+    base_name = "data"
+    ext = ".csv"
+    filename = base_name + ext
+    i = 1
+
+    # 同名ファイルが存在する限り、新しいファイル名を生成する
+    while os.path.exists(filename):
+        filename = f"{base_name}_{i}{ext}"
+        i += 1
+
+    # ファイルに書き込み
+    with open(filename, "w", newline="") as file:
+        writer = csv.writer(file)
+        writer.writerow(
+            [
+                "split_point",
+                "total_throughput",
+                "total_elapsed_time",
+                "first_throughput",
+                "first_elapsed_time",
+                "second_throughput",
+                "second_elapsed_time",
+            ]
+        )
+
+        split_point=s_min
+        for data in delay_data:
+            t, first_t, second_t = data
+            data_list.append((split_point, 1 / t, t, 1/first_t, first_t, 1/second_t, second_t))
+            split_point=split_point+1
+        writer.writerows(data_list)
+    print(f"Saved as: {filename}")
+
+
 if __name__ == "__main__":
     print("hello")
     mp.set_start_method("spawn")
 
-    for split_layer in range(3, 5):
+    split_layer_min = 3
+    split_layer_max = 57
+
+    for split_layer in range(split_layer_min, split_layer_max):
         q = Queue()
         wq = Queue()
         detect_A1 = Process(target=dete, args=(wq, q, split_layer))
@@ -108,5 +150,7 @@ if __name__ == "__main__":
     for item in delay_list:
         t, first_t, second_t = item
         print(i, f"Total: {t:.3f}s, First: {first_t:.3f}s, Second: {second_t:.3f}s\n")
-        #print(i, item, "\n")
+        # print(i, item, "\n")
         i = i + 1
+
+    record_csv(split_layer_min, delay_list)
